@@ -1,0 +1,149 @@
+# ecosystem.yaml — Define your projects, infrastructure, and patterns.
+# This file is the single source of truth that ecosystem-mcp reads from.
+
+infrastructure:
+  # Adapt to your setup — cloud_sql, databases, or any key you like.
+  # The tools handle both cloud_sql.databases and flat databases structures.
+  databases:
+    databases:
+      app_db:
+        writers: [api-server]
+        readers: [api-server, web-app]
+        key_tables: [users, orders, products]
+
+  cache:
+    host: localhost
+    port: 6379
+    users: [api-server, worker]
+    topics:
+      events: "Real-time event stream"
+      jobs: "Background job queue"
+
+  domains:
+    example.com:
+      service: web-app
+      status: live
+    api.example.com:
+      service: api-server
+      status: live
+    admin.example.com:
+      service: admin-panel
+      status: dev
+
+projects:
+  api-server:
+    path: api-server/
+    stack: go
+    port: 8080
+    deploy: docker
+    url: https://api.example.com
+    domain: api.example.com
+    status: live
+    description: REST API — auth, CRUD, webhooks
+    database: app_db
+    depends_on:
+      - stripe
+      - sendgrid
+    depended_by:
+      - web-app
+      - admin-panel
+      - worker
+    protocols:
+      - REST
+      - WebSocket
+    key_files:
+      - cmd/main.go
+      - internal/api/router.go
+      - internal/db/queries.go
+    env_vars:
+      required:
+        - DATABASE_URL
+        - JWT_SECRET
+        - STRIPE_SECRET_KEY
+      optional:
+        - SENDGRID_API_KEY
+        - SENTRY_DSN
+
+  web-app:
+    path: web-app/
+    stack: typescript-nextjs
+    port: 3000
+    deploy: docker
+    url: https://example.com
+    domain: example.com
+    status: live
+    description: Customer-facing web app — Next.js + React
+    database: null
+    depends_on:
+      - api-server
+    depended_by: []
+    key_files:
+      - src/app/page.tsx
+      - src/lib/api.ts
+    env_vars:
+      required:
+        - NEXT_PUBLIC_API_URL
+      optional:
+        - NEXT_PUBLIC_ANALYTICS_ID
+
+  admin-panel:
+    path: admin-panel/
+    stack: python-fastapi
+    port: 8081
+    deploy: docker
+    url: null
+    domain: admin.example.com
+    status: dev
+    description: Internal admin dashboard
+    database: app_db
+    depends_on:
+      - api-server
+    depended_by: []
+    key_files:
+      - main.py
+      - routers/users.py
+    env_vars:
+      required:
+        - DATABASE_URL
+        - ADMIN_SECRET
+      optional: []
+
+  worker:
+    path: worker/
+    stack: python-celery
+    port: null
+    deploy: docker
+    url: null
+    domain: null
+    status: live
+    description: Background job processor — emails, reports, cleanup
+    database: app_db
+    depends_on:
+      - api-server
+    depended_by: []
+    key_files:
+      - tasks.py
+      - config.py
+    env_vars:
+      required:
+        - DATABASE_URL
+        - REDIS_URL
+      optional: []
+
+# Cross-cutting patterns — document how projects connect
+patterns:
+  authentication:
+    description: JWT-based auth with refresh tokens
+    used_by: [api-server, web-app, admin-panel]
+    pattern: "web-app → api-server /auth/login → JWT → Bearer header"
+
+  background_jobs:
+    description: Celery workers process async tasks from Redis queue
+    used_by: [api-server, worker]
+    pattern: "api-server enqueues → Redis → worker processes"
+    shared: [Redis, app_db]
+
+  deployment:
+    description: All services deploy via Docker Compose in prod
+    projects: [api-server, web-app, admin-panel, worker]
+    pattern: "git push → CI build → docker-compose up"
