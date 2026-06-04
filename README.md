@@ -1,5 +1,9 @@
 # ecosystem-mcp
 
+[![CI](https://github.com/datamynt/ecosystem-mcp/actions/workflows/ci.yml/badge.svg)](https://github.com/datamynt/ecosystem-mcp/actions/workflows/ci.yml)
+[![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+[![Python](https://img.shields.io/badge/python-3.11%2B-blue.svg)]()
+
 MCP server that gives AI agents full context about your multi-project ecosystem.
 
 Define your projects, infrastructure, dependencies, and patterns in a single `ecosystem.yaml` — then let Claude Code, Cursor, or any MCP-compatible AI assistant understand your entire codebase at once.
